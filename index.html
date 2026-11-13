@@ -189,6 +189,7 @@ a.ag:active { background: var(--bg) }
 
 <script>
 const $ = (id) => document.getElementById(id);
+const BUILD = "f853dc2363";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
 let SNAP = null, onlyMe = false, VIEW = "teams", LF = { tq: "", tst: "active", kq: "", ktype: "", knotask: false };
 try { VIEW = localStorage.getItem("ship-view") || "teams"; LF = { ...LF, ...JSON.parse(localStorage.getItem("ship-lf") || "{}") }; } catch (e) {}
 const saveLF = () => { try { localStorage.setItem("ship-lf", JSON.stringify(LF)); localStorage.setItem("ship-view", VIEW); } catch (e) {} };
@@ -454,7 +455,6 @@ async function load() {
   if (document.visibilityState === "visible") timer = setTimeout(load, 20000);
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && $("setup").hidden) load(); else clearTimeout(timer); });
-const BUILD = "0cc08816ed";
 // service worker: sw.js luôn kiểm qua mạng; có bản mới thì tự tải lại trang (1 lần)
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {

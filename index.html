@@ -103,6 +103,9 @@ a.ag:active { background: var(--bg) }
 .setup button[type=submit] { font: 600 14px var(--f-body); padding: 10px; border: 0; border-radius: 6px; background: var(--accent); color: var(--surface); cursor: pointer }
 .setup .err { color: var(--block); font-size: 13px }
 .setup .ok { color: var(--ok); font-size: 13px }
+.xfer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.xfer button { font: 500 13px var(--f-body); padding: 9px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer }
+.xfer button:disabled { opacity: .4; cursor: default }
 </style>
 </head>
 <body>
@@ -125,6 +128,11 @@ a.ag:active { background: var(--bg) }
     <label for="s-key">Khoá giải mã (quét QR trên laptop sẽ tự điền)<input id="s-key" type="password" spellcheck="false" autocapitalize="off"></label>
     <span class="err" id="s-err" hidden></span>
     <button type="submit">Lưu và mở</button>
+    <div class="xfer">
+      <button type="button" id="s-paste">Dán mã cấu hình</button>
+      <button type="button" id="s-copy">Chép mã cấu hình</button>
+    </div>
+    <p>Safari và app ngoài màn hình chính lưu riêng. Đã ghép ở một nơi thì bấm <b>Chép mã cấu hình</b> ở đó, rồi <b>Dán mã cấu hình</b> ở nơi kia.</p>
   </form>
   <div class="teams" id="teams">
     <div class="empty" id="empty"><strong>Chưa có dữ liệu</strong><span>Trạng thái các team sẽ hiện ở đây khi laptop gửi bản cập nhật đầu tiên.</span></div>
@@ -232,9 +240,29 @@ function showSetup(msg) {
   const e = $("s-err"); e.textContent = msg || ""; e.hidden = !msg;
   $("fresh").textContent = "chưa ghép";
 }
+function setMsg(t, ok) { const e = $("s-err"); e.textContent = t; e.className = ok ? "ok" : "err"; e.hidden = !t; }
+function applyCode(code) {
+  const m = (code || "").trim().match(/^ship1:([A-Za-z0-9_-]+)$/);
+  if (!m) return setMsg("Mã cấu hình không đúng (phải bắt đầu bằng ship1:).");
+  let c; try { c = JSON.parse(new TextDecoder().decode(b64(m[1]))); } catch (e) { return setMsg("Mã cấu hình bị hỏng, chép lại."); }
+  $("s-repo").value = c.r || ""; $("s-token").value = c.t || ""; $("s-key").value = c.k || "";
+  $("setup").requestSubmit();
+}
+$("s-copy").onclick = () => {
+  const c = { r: $("s-repo").value.trim(), t: $("s-token").value.trim(), k: $("s-key").value.trim() };
+  if (!c.t || !c.k) return setMsg("Chưa có token và khoá để chép.");
+  const code = "ship1:" + btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(c)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  navigator.clipboard.writeText(code).then(() => setMsg("Đã chép. Mở app ngoài màn hình chính → Dán mã cấu hình.", true),
+    () => setMsg("Không chép được tự động. Thử lại sau khi chạm vào trang."));
+};
+$("s-paste").onclick = () => {
+  if (!navigator.clipboard || !navigator.clipboard.readText) return setMsg("Trình duyệt không cho đọc clipboard: dán mã vào ô Token rồi bấm Lưu.");
+  navigator.clipboard.readText().then(applyCode, () => setMsg("Không đọc được clipboard: bấm \"Dán\" khi iOS hỏi, hoặc dán mã vào ô Token."));
+};
 $("gear").onclick = () => { clearTimeout(timer); showSetup(""); };
 $("setup").onsubmit = (ev) => {
   ev.preventDefault();
+  if ($("s-token").value.trim().startsWith("ship1:")) return applyCode($("s-token").value);
   try {
     localStorage.setItem("ship-repo", $("s-repo").value.trim());
     localStorage.setItem("ship-token", $("s-token").value.trim());

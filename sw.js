@@ -1,5 +1,5 @@
 // Chỉ lưu tạm vỏ app để mở nhanh; KHÔNG bao giờ lưu phản hồi api.github.com (dữ liệu).
-const CACHE = "ship-shell-v1";
+const CACHE = "ship-shell-v2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "apple-touch-icon.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {

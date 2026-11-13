@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ship Teams</title>
+<meta name="theme-color" content="#0f7a78">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ship">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://api.github.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }
+body { margin: 0; font-size: 14px }
+[hidden] { display: none !important }
+
+/* Bảng điều độ: thanh tóm tắt dính đầu trang, mỗi team một khối, mỗi agent một dòng bấm được */
+:root {
+  --bg: #f3f5f6; --surface: #ffffff; --line: #dde3e6; --fg: #17222a; --muted: #5d6b74; --faint: #9aa7af;
+  --accent: #0f7a78; --busy: #2563c9; --wait: #b86e00; --block: #c2352b; --ok: #2f8a4c;
+  --busy-bg: #e5eefc; --wait-bg: #fdf0dc; --block-bg: #fbe6e4; --ok-bg: #e3f3e7;
+  --f-head: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10171b; --surface: #172127; --line: #26333a; --fg: #e3eaee; --muted: #93a3ac; --faint: #5f6f78;
+  --accent: #3cc2bd; --busy: #79a8ff; --wait: #f0a948; --block: #ff7a6e; --ok: #6fcf8d;
+  --busy-bg: #1b2a44; --wait-bg: #3a2a12; --block-bg: #41201d; --ok-bg: #18341f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10171b; --surface: #172127; --line: #26333a; --fg: #e3eaee; --muted: #93a3ac; --faint: #5f6f78;
+  --accent: #3cc2bd; --busy: #79a8ff; --wait: #f0a948; --block: #ff7a6e; --ok: #6fcf8d;
+  --busy-bg: #1b2a44; --wait-bg: #3a2a12; --block-bg: #41201d; --ok-bg: #18341f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.4 }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface) }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 32px }
+
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
+  margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 14px; padding: 10px max(16px, env(safe-area-inset-left, 0px)) 10px; display: grid; gap: 8px }
+.top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+h1 { font-family: var(--f-head); font-weight: 600; font-size: 20px; margin: 0; letter-spacing: .01em }
+.fresh { font-family: var(--f-mono); font-size: 12px; color: var(--muted) }
+.fresh.stale { color: var(--wait) }
+.fresh.dead { color: var(--block) }
+.tally { display: flex; gap: 6px; flex-wrap: wrap }
+.chip { font-family: var(--f-mono); font-size: 12px; border-radius: 999px; padding: 3px 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer }
+.chip b { font-weight: 500; color: var(--fg) }
+.chip.wait b { color: var(--wait) } .chip.busy b { color: var(--busy) } .chip.block b { color: var(--block) }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--fg); box-shadow: inset 0 0 0 1px var(--accent) }
+.chip:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+
+.teams { display: grid; gap: 14px }
+section.team { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.th { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 12px 8px; border-bottom: 1px solid var(--line) }
+.th h2 { font-family: var(--f-head); font-weight: 600; font-size: 16px; margin: 0; text-wrap: balance; min-width: 0 }
+.th .sub { grid-column: 1; font-family: var(--f-mono); font-size: 11px; color: var(--muted); overflow-wrap: anywhere }
+.phase { grid-row: 1 / span 2; grid-column: 2; align-self: start; font-family: var(--f-mono); font-size: 11px; letter-spacing: .04em; padding: 2px 8px; border-radius: 4px; background: var(--bg); color: var(--muted); white-space: nowrap }
+.phase.READY_TO_PUSH, .phase.DONE { background: var(--ok-bg); color: var(--ok) }
+.phase.REVIEW, .phase.TESTING { background: var(--busy-bg); color: var(--busy) }
+.due.late { color: var(--block) }
+
+ul.agents { list-style: none; margin: 0; padding: 0 }
+ul.agents li + li { border-top: 1px solid var(--line) }a.ag { display: grid; grid-template-columns: 30px 1fr auto; gap: 2px 10px; padding: 8px 12px; color: inherit; text-decoration: none; align-items: start }
+a.ag:active { background: var(--bg) }
+.lt { grid-row: 1 / span 2; width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; font-family: var(--f-mono); font-weight: 500; font-size: 13px;
+  background: var(--bg); color: var(--faint); border: 1px solid var(--line) }
+.lt.idle { color: var(--fg) }
+.lt.busy { background: var(--busy-bg); color: var(--busy); border-color: transparent }
+.lt.dialog { background: var(--wait-bg); color: var(--wait); border-color: var(--wait) }
+.lt.off { opacity: .55 }
+@media (prefers-reduced-motion: no-preference) { .lt.busy { animation: pulse 1.6s ease-in-out infinite } }
+@keyframes pulse { 50% { opacity: .55 } }
+.nm { font-weight: 500; min-width: 0 }
+.st { font-family: var(--f-mono); font-size: 11px; color: var(--muted); white-space: nowrap; text-align: right }
+.ln { grid-column: 2 / span 2; font-size: 12.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere }
+.ln .why { color: var(--fg) }
+.flag { display: inline-block; font-family: var(--f-mono); font-size: 10.5px; padding: 0 6px; border-radius: 3px; margin-right: 6px; vertical-align: 1px }
+.flag.wait { background: var(--wait-bg); color: var(--wait) }
+.flag.block { background: var(--block-bg); color: var(--block) }
+.flag.busy { background: var(--busy-bg); color: var(--busy) }
+
+
+.empty { padding: 40px 8px; text-align: center; color: var(--muted); display: grid; gap: 6px }
+.empty strong { font-family: var(--f-head); font-size: 16px; color: var(--fg) }
+.note { font-size: 12px; color: var(--muted); margin-top: 18px }
+
+.gear { margin-left: auto; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 6px; font-size: 12px; padding: 3px 9px; cursor: pointer; font-family: var(--f-mono) }
+.setup { max-width: 460px; margin: 24px auto; display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 16px }
+.setup h2 { font-family: var(--f-head); font-weight: 600; font-size: 18px; margin: 0 }
+.setup p { margin: 0; color: var(--muted); font-size: 13px }
+.setup label { display: grid; gap: 4px; font-size: 13px; font-weight: 500 }
+.setup input { font: 13px var(--f-mono); padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); width: 100% }
+.setup input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.setup button[type=submit] { font: 600 14px var(--f-body); padding: 10px; border: 0; border-radius: 6px; background: var(--accent); color: var(--surface); cursor: pointer }
+.setup .err { color: var(--block); font-size: 13px }
+.setup .ok { color: var(--ok); font-size: 13px }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="top"><h1>Ship Teams</h1><span class="fresh" id="fresh">đang kết nối…</span><button class="gear" id="gear" type="button">Cài đặt</button></div>
+    <div class="tally" id="tally" role="group" aria-label="Lọc">
+      <button class="chip" id="f-all" aria-pressed="true">Tất cả</button>
+      <button class="chip wait" id="f-me" aria-pressed="false">Chờ bạn <b id="n-me">–</b></button>
+      <span class="chip busy" aria-hidden="true">Đang chạy <b id="n-busy">–</b></span>
+      <span class="chip block" aria-hidden="true">Câu hỏi mở <b id="n-q">–</b></span>
+    </div>
+  </header>
+  <form class="setup" id="setup" hidden autocomplete="off">
+    <h2>Ghép với laptop</h2>
+    <p>Dữ liệu trên GitHub đã được mã hoá. Trang cần token chỉ đọc của repo trạng thái và khoá giải mã từ laptop. Cả hai chỉ lưu trong trình duyệt của máy này.</p>
+    <label for="s-repo">Repo trạng thái<input id="s-repo" value="ndlong88/ship-status" spellcheck="false" autocapitalize="off"></label>
+    <label for="s-token">Token GitHub (Contents: Read-only, chỉ repo trên)<input id="s-token" type="password" spellcheck="false" autocapitalize="off" placeholder="github_pat_…"></label>
+    <label for="s-key">Khoá giải mã (quét QR trên laptop sẽ tự điền)<input id="s-key" type="password" spellcheck="false" autocapitalize="off"></label>
+    <span class="err" id="s-err" hidden></span>
+    <button type="submit">Lưu và mở</button>
+  </form>
+  <div class="teams" id="teams">
+    <div class="empty" id="empty"><strong>Chưa có dữ liệu</strong><span>Trạng thái các team sẽ hiện ở đây khi laptop gửi bản cập nhật đầu tiên.</span></div>
+  </div>
+  <p class="note">Bấm một agent để mở phiên của nó (Remote Control) và xem chi tiết, nhắn hoặc duyệt ở đó. Trang chỉ hiện trạng thái, không có nội dung công việc.</p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let SNAP = null, onlyMe = false;
+try { onlyMe = localStorage.getItem("ship-only-me") === "1"; } catch (e) {}
+
+const PHASE = { PLANNING: "Lên spec", CODING: "Code", TESTING: "Test", REVIEW: "Review", READY_TO_PUSH: "Chờ push", DONE: "Xong", NOT_STARTED: "Chưa bắt đầu" };
+const LIVE = { busy: "đang chạy", idle: "rảnh", dialog: "chờ chọn", waiting: "chờ", off: "tắt" };
+
+function needsMe(a) { return a.live === "dialog" || a.waiting_on === "user" || a.state === "attention" || a.state === "blocked"; }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function ago(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "vừa xong"; if (s < 3600) return Math.round(s / 60) + " phút trước";
+  if (s < 86400) return Math.round(s / 3600) + " giờ trước"; return Math.round(s / 86400) + " ngày trước";
+}
+function hhmm(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }); }
+
+function renderFresh() {
+  const f = $("fresh");
+  if (!SNAP) return;
+  const mins = (Date.now() - new Date(SNAP.generated_at).getTime()) / 60000;
+  f.textContent = "cập nhật " + hhmm(SNAP.generated_at) + " · " + ago(SNAP.generated_at);
+  f.className = "fresh" + (mins > 60 ? " dead" : mins > 15 ? " stale" : "");
+  f.title = mins > 15 ? "Lâu chưa có bản mới: có thể không có gì đổi, hoặc laptop đang ngủ / phiên cập nhật đã dừng." : "";
+}
+
+function render() {
+  if (!SNAP) return;
+  renderFresh();
+  const teams = SNAP.teams || [];
+  let nMe = 0, nBusy = 0, nQ = 0;
+  for (const t of teams) { nQ += t.q_open || 0; for (const a of t.agents) { if (needsMe(a)) nMe++; if (a.live === "busy") nBusy++; } }
+  $("n-me").textContent = nMe; $("n-busy").textContent = nBusy; $("n-q").textContent = nQ;
+  $("f-all").setAttribute("aria-pressed", String(!onlyMe)); $("f-me").setAttribute("aria-pressed", String(onlyMe));
+
+
+  const box = $("teams"); box.replaceChildren();
+  const today = new Date().toISOString().slice(0, 10);
+  const order = teams.slice().sort((x, y) => (y.agents.filter(needsMe).length - x.agents.filter(needsMe).length) || x.id.localeCompare(y.id));
+  for (const t of order) {
+    const agents = onlyMe ? t.agents.filter(needsMe) : t.agents;
+    if (onlyMe && !agents.length && !(t.q_blocking > 0)) continue;
+    const sec = el("section", "team"); sec.id = "team-" + t.id;
+    const th = el("div", "th");
+    th.append(el("h2", null, t.short || t.title || t.task));
+    const ph = el("span", "phase " + t.phase, PHASE[t.phase] || t.phase); th.append(ph);
+    const sub = el("div", "sub"); sub.append(document.createTextNode(t.id + " · " + t.task));
+    if (t.due) { sub.append(document.createTextNode(" · hạn ")); sub.append(el("span", "due" + (t.due < today && t.phase !== "DONE" ? " late" : ""), t.due)); }
+    if (t.q_open) { sub.append(document.createTextNode(" · ")); sub.append(el("span", t.q_blocking ? "due late" : "", t.q_open + " câu hỏi mở" + (t.q_blocking ? " (" + t.q_blocking + " BLOCKING)" : ""))); }
+    th.append(sub); sec.append(th);
+
+    const ul = el("ul", "agents");
+    for (const a of agents) {
+      const li = el("li");
+      const link = el("a", "ag");
+      if (a.rc) { link.href = a.rc; link.target = "_blank"; link.rel = "noopener"; }
+      link.setAttribute("aria-label", a.name + ", " + (LIVE[a.live] || a.live) + (a.rc ? ", mở phiên" : ""));
+      link.append(el("span", "lt " + a.live, a.letter));
+      link.append(el("span", "nm", a.name));
+      link.append(el("span", "st", [a.status, a.round && "r" + a.round].filter(Boolean).join(" · ") || "–"));
+      const ln = el("div", "ln");
+      if (a.live === "dialog") ln.append(el("span", "flag wait", "chờ chọn"));
+      else if (a.state === "blocked") ln.append(el("span", "flag block", "bị chặn"));
+      else if (a.waiting_on === "user" || a.state === "attention") ln.append(el("span", "flag wait", "chờ bạn"));
+      else if (a.live === "busy") ln.append(el("span", "flag busy", "đang chạy"));
+      if (ln.childElementCount) link.append(ln); li.append(link); ul.append(li);
+    }
+    sec.append(ul);
+
+    box.append(sec);
+  }
+  if (!box.childElementCount) {
+    const e = el("div", "empty"); e.append(el("strong", null, onlyMe ? "Không có gì chờ bạn" : "Chưa có team nào đang làm task"));
+    e.append(el("span", null, onlyMe ? "Mọi agent đang chạy hoặc đã xong việc." : "Giao task cho team trên dashboard laptop."));
+    box.append(e);
+  }
+}
+
+$("f-all").onclick = () => { onlyMe = false; try { localStorage.setItem("ship-only-me", "0"); } catch (e) {} render(); };
+$("f-me").onclick = () => { onlyMe = true; try { localStorage.setItem("ship-only-me", "1"); } catch (e) {} render(); };
+setInterval(renderFresh, 30000);
+
+
+const CFG_KEYS = ["ship-repo", "ship-token", "ship-key"];
+function cfg() { try { return { repo: localStorage.getItem("ship-repo") || "ndlong88/ship-status", token: localStorage.getItem("ship-token") || "", key: localStorage.getItem("ship-key") || "" }; } catch (e) { return { repo: "", token: "", key: "" }; } }
+function b64(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+let etag = "", cryptoKey = null, timer = 0;
+
+// khoá đến từ QR: ...#k=<khoá> — fragment không bao giờ gửi lên máy chủ; lưu rồi xoá khỏi thanh địa chỉ
+(function takeKeyFromHash() {
+  const m = location.hash.match(/(?:^#|&)k=([A-Za-z0-9_-]+)/);
+  if (m) { try { localStorage.setItem("ship-key", m[1]); } catch (e) {} history.replaceState(null, "", location.pathname + location.search); }
+})();
+
+function showSetup(msg) {
+  const c = cfg(); $("setup").hidden = false; $("teams").hidden = true;
+  $("s-repo").value = c.repo; $("s-token").value = c.token; $("s-key").value = c.key;
+  const e = $("s-err"); e.textContent = msg || ""; e.hidden = !msg;
+  $("fresh").textContent = "chưa ghép";
+}
+$("gear").onclick = () => { clearTimeout(timer); showSetup(""); };
+$("setup").onsubmit = (ev) => {
+  ev.preventDefault();
+  try {
+    localStorage.setItem("ship-repo", $("s-repo").value.trim());
+    localStorage.setItem("ship-token", $("s-token").value.trim());
+    localStorage.setItem("ship-key", $("s-key").value.trim());
+  } catch (e) { $("s-err").textContent = "Trình duyệt không cho lưu cài đặt (chế độ riêng tư?)."; $("s-err").hidden = false; return; }
+  cryptoKey = null; etag = ""; $("setup").hidden = true; $("teams").hidden = false; load();
+};
+
+async function load() {
+  clearTimeout(timer);
+  const c = cfg();
+  if (!c.token || !c.key || !c.repo) return showSetup(c.key ? "Nhập token GitHub chỉ đọc để bắt đầu." : "");
+  try {
+    if (!cryptoKey) cryptoKey = await crypto.subtle.importKey("raw", b64(c.key), "AES-GCM", false, ["decrypt"]);
+    const h = { Authorization: "Bearer " + c.token, Accept: "application/vnd.github.raw+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (etag) h["If-None-Match"] = etag;
+    const r = await fetch("https://api.github.com/repos/" + c.repo + "/contents/state.enc", { headers: h, cache: "no-store" });
+    if (r.status === 401 || r.status === 403 || r.status === 404) {
+      if (r.status === 403 && r.headers.get("x-ratelimit-remaining") === "0") throw new Error("hết lượt gọi GitHub, thử lại sau ít phút");
+      return showSetup("GitHub từ chối (" + r.status + "): token sai, hết hạn, hoặc chưa cấp quyền đọc repo " + c.repo + ".");
+    }
+    if (r.status !== 304) {
+      if (!r.ok) throw new Error("GitHub trả " + r.status);
+      etag = r.headers.get("etag") || "";
+      const env = JSON.parse(await r.text());
+      let plain;
+      try { plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(env.iv), additionalData: new TextEncoder().encode("ship-status/v1") }, cryptoKey, b64(env.ct)); }
+      catch (e) { return showSetup("Không giải mã được: khoá không khớp với laptop. Quét lại QR."); }
+      SNAP = JSON.parse(new TextDecoder().decode(plain)); render();
+    } else renderFresh();
+  } catch (e) {
+    $("fresh").textContent = (SNAP ? "cập nhật " + ago(SNAP.generated_at) + " · " : "") + "lỗi: " + (e.message || e);
+  }
+  if (document.visibilityState === "visible") timer = setTimeout(load, 20000);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && $("setup").hidden) load(); else clearTimeout(timer); });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+load();
+</script>
+
+</body>
+</html>

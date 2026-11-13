@@ -89,6 +89,18 @@ a.ag:active { background: var(--bg) }
 .flag.busy { background: var(--busy-bg); color: var(--busy) }
 
 
+.alerts { display: grid; gap: 4px; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--wait); background: var(--wait-bg); border-radius: 0 6px 6px 0 }
+.alerts div { font-size: 13px }
+.alerts .t { font-family: var(--f-mono); font-size: 11px; color: var(--muted); margin-right: 6px }
+.last { display: block; margin-top: 2px }
+.last .ago { color: var(--faint); font-family: var(--f-mono); font-size: 11px }
+.foot { display: grid; gap: 6px; padding: 8px 12px 10px; border-top: 1px solid var(--line); background: var(--bg) }
+.qs div { font-size: 12.5px } .qs .id { font-family: var(--f-mono); font-size: 11px; margin-right: 6px; color: var(--muted) }
+.qs .blk .id { color: var(--block) }
+.mrs { display: flex; flex-wrap: wrap; gap: 6px }
+.mrs a { font-family: var(--f-mono); font-size: 11.5px; color: var(--fg); text-decoration: none; border: 1px solid var(--line); border-radius: 4px; padding: 2px 7px; background: var(--surface) }
+.mrs .p-success { color: var(--ok) } .mrs .p-failed { color: var(--block) } .mrs .p-running, .mrs .p-pending { color: var(--busy) }
+.mrs .merged { opacity: .6 }
 .empty { padding: 40px 8px; text-align: center; color: var(--muted); display: grid; gap: 6px }
 .empty strong { font-family: var(--f-head); font-size: 16px; color: var(--fg) }
 .note { font-size: 12px; color: var(--muted); margin-top: 18px }
@@ -134,10 +146,11 @@ a.ag:active { background: var(--bg) }
     </div>
     <p>Safari và app ngoài màn hình chính lưu riêng. Đã ghép ở một nơi thì bấm <b>Chép mã cấu hình</b> ở đó, rồi <b>Dán mã cấu hình</b> ở nơi kia.</p>
   </form>
+  <div class="alerts" id="alerts" hidden></div>
   <div class="teams" id="teams">
     <div class="empty" id="empty"><strong>Chưa có dữ liệu</strong><span>Trạng thái các team sẽ hiện ở đây khi laptop gửi bản cập nhật đầu tiên.</span></div>
   </div>
-  <p class="note">Bấm một agent để mở phiên của nó (Remote Control) và xem chi tiết, nhắn hoặc duyệt ở đó. Trang chỉ hiện trạng thái, không có nội dung công việc.</p>
+  <p class="note">Bấm một agent để mở phiên của nó (Remote Control) và xem chi tiết, nhắn hoặc duyệt ở đó. Dữ liệu được mã hoá trên laptop, chỉ máy đã ghép mới đọc được.</p>
 </div>
 
 <script>
@@ -176,6 +189,13 @@ function render() {
   $("f-all").setAttribute("aria-pressed", String(!onlyMe)); $("f-me").setAttribute("aria-pressed", String(onlyMe));
 
 
+  const al = $("alerts"); al.replaceChildren();
+  for (const x of (SNAP.alerts || []).slice(-4).reverse()) {
+    const d = el("div"); d.append(el("span", "t", (x.team || "") + (x.at ? " · " + hhmm(typeof x.at === "number" ? x.at * 1000 : x.at) : "")), document.createTextNode(x.title || ""));
+    al.append(d);
+  }
+  al.hidden = !al.childElementCount || !$("setup").hidden;
+
   const box = $("teams"); box.replaceChildren();
   const today = new Date().toISOString().slice(0, 10);
   const order = teams.slice().sort((x, y) => (y.agents.filter(needsMe).length - x.agents.filter(needsMe).length) || x.id.localeCompare(y.id));
@@ -205,9 +225,32 @@ function render() {
       else if (a.state === "blocked") ln.append(el("span", "flag block", "bị chặn"));
       else if (a.waiting_on === "user" || a.state === "attention") ln.append(el("span", "flag wait", "chờ bạn"));
       else if (a.live === "busy") ln.append(el("span", "flag busy", "đang chạy"));
+      if (a.note) ln.append(el("span", "why", a.note));
+      if (a.last) { const l = el("span", "last", a.last + " "); if (a.last_at) l.append(el("span", "ago", "· " + ago(a.last_at))); ln.append(l); }
       if (ln.childElementCount) link.append(ln); li.append(link); ul.append(li);
     }
     sec.append(ul);
+    const qs = (t.q || []).filter(q => !onlyMe || q.blocking);
+    const mrs = onlyMe ? [] : (t.mrs || []);
+    if (qs.length || mrs.length) {
+      const foot = el("div", "foot");
+      if (qs.length) {
+        const q = el("div", "qs");
+        for (const x of qs) { const d = el("div", x.blocking ? "blk" : ""); d.append(el("span", "id", x.id + (x.blocking ? " BLOCKING" : "") + " → " + x.to), document.createTextNode(x.ask || "")); q.append(d); }
+        foot.append(q);
+      }
+      if (mrs.length) {
+        const m = el("div", "mrs");
+        for (const r of mrs) {
+          const a = el("a", r.state === "merged" ? "merged" : ""); a.href = r.url; a.target = "_blank"; a.rel = "noopener";
+          a.append(document.createTextNode("!" + r.iid + " " + r.repo + " "));
+          a.append(el("span", "p-" + (r.pipeline || "none"), r.state === "merged" ? "merged" : r.draft ? "draft" : (r.state || "?") + (r.pipeline ? " · " + r.pipeline : "")));
+          m.append(a);
+        }
+        foot.append(m);
+      }
+      sec.append(foot);
+    }
 
     box.append(sec);
   }

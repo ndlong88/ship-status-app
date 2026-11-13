@@ -118,6 +118,30 @@ a.ag:active { background: var(--bg) }
 .xfer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
 .xfer button { font: 500 13px var(--f-body); padding: 9px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer }
 .xfer button:disabled { opacity: .4; cursor: default }
+.wrap { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding: 4px max(8px, env(safe-area-inset-left, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) }
+.tabbar button { border: 0; background: none; color: var(--muted); font: 500 11px var(--f-body); display: grid; justify-items: center; gap: 2px; padding: 6px 0; cursor: pointer }
+.tabbar button span { font-size: 17px; line-height: 1 }
+.tabbar button b { color: var(--wait); font-weight: 600 }
+.tabbar button.on { color: var(--accent) }
+.lview { display: grid; gap: 8px }
+.lsearch { font: 14px var(--f-body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); width: 100% }
+.lchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px }
+.lchips .chip { white-space: nowrap; flex: none }
+.lchips .chip.on { border-color: var(--accent); color: var(--fg); box-shadow: inset 0 0 0 1px var(--accent) }
+.lcount { font-family: var(--f-mono); font-size: 11px; color: var(--muted) }
+.lrow { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; display: grid; gap: 4px }
+.lr-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap }
+.lid { font-family: var(--f-mono); font-size: 12px; font-weight: 500 }
+.lr-title { font-weight: 500; font-size: 14px; overflow-wrap: anywhere }
+.lr-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted) }
+.lr-meta .late { color: var(--block) } .lr-meta .ok { color: var(--ok) }
+.pill { font-family: var(--f-mono); font-size: 10.5px; padding: 1px 7px; border-radius: 4px; background: var(--bg); color: var(--muted) }
+.pill.st-in-progress { background: var(--busy-bg); color: var(--busy) } .pill.st-paused { background: var(--wait-bg); color: var(--wait) } .pill.st-done { background: var(--ok-bg); color: var(--ok) }
+.tag { font-size: 11px; padding: 0 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted) }
+.lst { font-size: 12px; color: var(--muted) }
+.jlink { color: var(--accent); text-decoration: none; font-weight: 600 }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer }
 </style>
 </head>
 <body>
@@ -126,8 +150,7 @@ a.ag:active { background: var(--bg) }
   <header>
     <div class="top"><h1>Ship Teams</h1><span class="fresh" id="fresh">đang kết nối…</span><button class="gear" id="gear" type="button">Cài đặt</button></div>
     <div class="tally" id="tally" role="group" aria-label="Lọc">
-      <button class="chip" id="f-all" aria-pressed="true">Tất cả</button>
-      <button class="chip wait" id="f-me" aria-pressed="false">Chờ bạn <b id="n-me">–</b></button>
+      <button class="chip wait" id="f-me" type="button">Chờ bạn <b id="n-me">–</b></button>
       <span class="chip busy" aria-hidden="true">Đang chạy <b id="n-busy">–</b></span>
       <span class="chip block" aria-hidden="true">Câu hỏi mở <b id="n-q">–</b></span>
     </div>
@@ -147,16 +170,26 @@ a.ag:active { background: var(--bg) }
     <p>Safari và app ngoài màn hình chính lưu riêng. Đã ghép ở một nơi thì bấm <b>Chép mã cấu hình</b> ở đó, rồi <b>Dán mã cấu hình</b> ở nơi kia.</p>
   </form>
   <div class="alerts" id="alerts" hidden></div>
+  <div class="lview" id="view-tasks" hidden></div>
+  <div class="lview" id="view-tickets" hidden></div>
   <div class="teams" id="teams">
     <div class="empty" id="empty"><strong>Chưa có dữ liệu</strong><span>Trạng thái các team sẽ hiện ở đây khi laptop gửi bản cập nhật đầu tiên.</span></div>
   </div>
   <p class="note">Bấm một agent để mở phiên của nó (Remote Control) và xem chi tiết, nhắn hoặc duyệt ở đó. Dữ liệu được mã hoá trên laptop, chỉ máy đã ghép mới đọc được.</p>
 </div>
+<nav class="tabbar" id="tabbar" hidden>
+  <button type="button" data-view="teams"><span>▣</span>Teams</button>
+  <button type="button" data-view="tasks"><span>☰</span>Tasks</button>
+  <button type="button" data-view="tickets"><span>◆</span>Tickets</button>
+  <button type="button" data-view="me"><span>●</span>Chờ tôi<b id="tb-me"></b></button>
+</nav>
 
 <script>
 const $ = (id) => document.getElementById(id);
-let SNAP = null, onlyMe = false;
-try { onlyMe = localStorage.getItem("ship-only-me") === "1"; } catch (e) {}
+let SNAP = null, onlyMe = false, VIEW = "teams", LF = { tq: "", tst: "active", kq: "", ktype: "", knotask: false };
+try { VIEW = localStorage.getItem("ship-view") || "teams"; LF = { ...LF, ...JSON.parse(localStorage.getItem("ship-lf") || "{}") }; } catch (e) {}
+const saveLF = () => { try { localStorage.setItem("ship-lf", JSON.stringify(LF)); localStorage.setItem("ship-view", VIEW); } catch (e) {} };
+const TASK_ST = { "in-progress": "Đang làm", paused: "Tạm gác", todo: "Chưa làm", done: "Xong", archived: "Lưu trữ" };
 
 const PHASE = { PLANNING: "Lên spec", CODING: "Code", TESTING: "Test", REVIEW: "Review", READY_TO_PUSH: "Chờ push", DONE: "Xong", NOT_STARTED: "Chưa bắt đầu" };
 const LIVE = { busy: "đang chạy", idle: "rảnh", dialog: "chờ chọn", waiting: "chờ", off: "tắt" };
@@ -186,7 +219,13 @@ function render() {
   let nMe = 0, nBusy = 0, nQ = 0;
   for (const t of teams) { nQ += t.q_open || 0; for (const a of t.agents) { if (needsMe(a)) nMe++; if (a.live === "busy") nBusy++; } }
   $("n-me").textContent = nMe; $("n-busy").textContent = nBusy; $("n-q").textContent = nQ;
-  $("f-all").setAttribute("aria-pressed", String(!onlyMe)); $("f-me").setAttribute("aria-pressed", String(onlyMe));
+  onlyMe = VIEW === "me";
+  $("tb-me").textContent = nMe ? " " + nMe : "";
+  for (const b of document.querySelectorAll("#tabbar button")) b.classList.toggle("on", b.dataset.view === VIEW);
+  $("tabbar").hidden = !$("setup").hidden;
+  const isTeams = VIEW === "teams" || VIEW === "me";
+  $("teams").hidden = !isTeams || !$("setup").hidden; $("view-tasks").hidden = VIEW !== "tasks"; $("view-tickets").hidden = VIEW !== "tickets";
+  if (VIEW === "tasks") renderTasks(); else if (VIEW === "tickets") renderTickets();
 
 
   const al = $("alerts"); al.replaceChildren();
@@ -261,8 +300,76 @@ function render() {
   }
 }
 
-$("f-all").onclick = () => { onlyMe = false; try { localStorage.setItem("ship-only-me", "0"); } catch (e) {} render(); };
-$("f-me").onclick = () => { onlyMe = true; try { localStorage.setItem("ship-only-me", "1"); } catch (e) {} render(); };
+$("f-me").onclick = () => { VIEW = "me"; saveLF(); render(); scrollTo(0, 0); };
+$("tabbar").onclick = (e) => { const b = e.target.closest("[data-view]"); if (!b) return; VIEW = b.dataset.view; saveLF(); render(); scrollTo(0, 0); };
+
+// --- danh sách task / ticket (dùng chung kiểu dòng)
+function chipBar(items, cur, onPick) {
+  const bar = el("div", "lchips");
+  for (const [v, label] of items) { const b = el("button", "chip" + (cur === v ? " on" : ""), label); b.type = "button"; b.onclick = () => onPick(v); bar.append(b); }
+  return bar;
+}
+function searchBox(val, ph, onInput) {
+  const i = el("input", "lsearch"); i.type = "search"; i.placeholder = ph; i.value = val; i.autocapitalize = "off"; i.spellcheck = false;
+  i.oninput = () => onInput(i.value); return i;
+}
+function keepSearch(box, sel) { const a = document.activeElement; return a && a.matches && a.matches(sel) ? a.selectionStart : null; }
+function restoreSearch(box, sel, pos) { if (pos === null) return; const i = box.querySelector(sel); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (e) {} } }
+function renderTasks() {
+  const box = $("view-tasks"), pos = keepSearch(box, ".lsearch"); box.replaceChildren();
+  const today = new Date().toISOString().slice(0, 10), all = SNAP.tasks || [];
+  const q = LF.tq.trim().toLowerCase();
+  const pass = t => (!q || (t.id + " " + t.title + " " + t.jira + " " + t.team).toLowerCase().includes(q))
+    && (LF.tst === "all" || (LF.tst === "active" ? ["in-progress", "paused", "todo"].includes(t.status) : LF.tst === "late" ? t.due && t.due < today && t.status !== "done" : t.status === LF.tst));
+  const order = ["in-progress", "paused", "todo", "done"];
+  const list = all.filter(pass).sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || (a.due || "9").localeCompare(b.due || "9"));
+  box.append(searchBox(LF.tq, "Tìm mã, tiêu đề, ticket, team…", v => { LF.tq = v; saveLF(); render(); }));
+  box.append(chipBar([["active", "Chưa xong"], ["in-progress", "Đang làm"], ["paused", "Tạm gác"], ["todo", "Chưa làm"], ["late", "Quá hạn"], ["done", "Xong"], ["all", "Tất cả"]], LF.tst, v => { LF.tst = v; saveLF(); render(); }));
+  box.append(el("div", "lcount", list.length + " / " + all.length + " task"));
+  for (const t of list) {
+    const r = el("div", "lrow");
+    const top = el("div", "lr-top"); top.append(el("span", "lid", t.id), el("span", "pill st-" + t.status, TASK_ST[t.status] || t.status));
+    if (t.status === "in-progress" && t.phase) top.append(el("span", "phase " + t.phase, PHASE[t.phase] || t.phase));
+    r.append(top, el("div", "lr-title", t.short || t.title));
+    const meta = el("div", "lr-meta");
+    if (t.team) { const b = el("button", "linkbtn", "team " + t.team); b.type = "button"; b.onclick = () => { VIEW = "teams"; saveLF(); render(); const s = $("team-" + t.team); if (s) s.scrollIntoView({ block: "start" }); }; meta.append(b); }
+    if (t.jira) { const a = el("a", "jlink", t.jira); a.href = t.jira_url || "#"; a.target = "_blank"; a.rel = "noopener"; meta.append(a); }
+    if (t.due) meta.append(el("span", t.due < today && t.status !== "done" ? "late" : "", "hạn " + t.due));
+    if (t.q_open) meta.append(el("span", "late", t.q_open + " câu hỏi"));
+    if (t.mr_open) meta.append(el("span", "", "⇅ " + t.mr_open + " MR"));
+    if (t.last_activity) meta.append(el("span", "", ago(t.last_activity * 1000)));
+    r.append(meta); box.append(r);
+  }
+  if (!list.length) box.append(el("div", "empty", "Không có task nào khớp."));
+  restoreSearch(box, ".lsearch", pos);
+}
+function renderTickets() {
+  const box = $("view-tickets"), pos = keepSearch(box, ".lsearch"); box.replaceChildren();
+  const tk = SNAP.tickets || { issues: [] }, all = tk.issues || [], q = LF.kq.trim().toLowerCase();
+  const types = [...new Set(all.map(i => i.type))].sort();
+  const list = all.filter(i => (!q || (i.key + " " + i.summary).toLowerCase().includes(q)) && (!LF.ktype || i.type === LF.ktype) && (!LF.knotask || !i.task));
+  box.append(searchBox(LF.kq, "Tìm mã, tiêu đề…", v => { LF.kq = v; saveLF(); render(); }));
+  box.append(chipBar([["", "Mọi loại"], ...types.map(x => [x, x])], LF.ktype, v => { LF.ktype = v; saveLF(); render(); }));
+  box.append(chipBar([[false, "Tất cả"], [true, "Chưa có task"]], LF.knotask, v => { LF.knotask = v; saveLF(); render(); }));
+  const info = el("div", "lcount", list.length + " / " + all.length + " ticket" + (tk.fetched_at ? " · lấy " + ago(tk.fetched_at * 1000) : ""));
+  if (tk.error) info.append(el("span", "late", " · lỗi: " + tk.error));
+  box.append(info);
+  for (const i of list) {
+    const r = el("div", "lrow");
+    const top = el("div", "lr-top"); const a = el("a", "jlink lid", i.key); a.href = i.url; a.target = "_blank"; a.rel = "noopener";
+    top.append(a, el("span", "tag", i.type), el("span", "lst", i.status));
+    r.append(top, el("div", "lr-title", i.summary));
+    const meta = el("div", "lr-meta");
+    if (i.priority) meta.append(el("span", /High/.test(i.priority) ? "late" : "", i.priority));
+    if (i.due) meta.append(el("span", "", "hạn " + i.due));
+    meta.append(el("span", "", "tạo " + i.created));
+    if (i.task) meta.append(el("span", "ok", "→ " + i.task.id + " · " + (TASK_ST[i.task.status] || i.task.status)));
+    else meta.append(el("span", "", "chưa có task"));
+    r.append(meta); box.append(r);
+  }
+  if (!list.length) box.append(el("div", "empty", all.length ? "Không ticket nào khớp." : "Chưa có ticket (laptop lấy 15 phút/lần)."));
+  restoreSearch(box, ".lsearch", pos);
+}
 setInterval(renderFresh, 30000);
 
 
@@ -278,7 +385,7 @@ let etag = "", cryptoKey = null, timer = 0;
 })();
 
 function showSetup(msg) {
-  const c = cfg(); $("setup").hidden = false; $("teams").hidden = true;
+  const c = cfg(); $("setup").hidden = false; $("teams").hidden = true; $("view-tasks").hidden = true; $("view-tickets").hidden = true; $("tabbar").hidden = true;
   $("s-repo").value = c.repo; $("s-token").value = c.token; $("s-key").value = c.key;
   const e = $("s-err"); e.textContent = msg || ""; e.hidden = !msg;
   $("fresh").textContent = "chưa ghép";

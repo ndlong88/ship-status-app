@@ -118,6 +118,7 @@ a.ag:active { background: var(--bg) }
 .xfer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
 .xfer button { font: 500 13px var(--f-body); padding: 9px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer }
 .xfer button:disabled { opacity: .4; cursor: default }
+.xfer .ver { align-self: center; justify-self: center; font-family: var(--f-mono); font-size: 11px; color: var(--muted) }
 .wrap { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) }
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding: 4px max(8px, env(safe-area-inset-left, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) }
 .tabbar button { border: 0; background: none; color: var(--muted); font: 500 11px var(--f-body); display: grid; justify-items: center; gap: 2px; padding: 6px 0; cursor: pointer }
@@ -164,6 +165,8 @@ a.ag:active { background: var(--bg) }
     <span class="err" id="s-err" hidden></span>
     <button type="submit">Lưu và mở</button>
     <div class="xfer">
+      <button type="button" id="s-reload">Tải bản mới</button>
+      <span class="ver" id="s-ver"></span>
       <button type="button" id="s-paste">Dán mã cấu hình</button>
       <button type="button" id="s-copy">Chép mã cấu hình</button>
     </div>
@@ -409,6 +412,8 @@ $("s-paste").onclick = () => {
   if (!navigator.clipboard || !navigator.clipboard.readText) return setMsg("Trình duyệt không cho đọc clipboard: dán mã vào ô Token rồi bấm Lưu.");
   navigator.clipboard.readText().then(applyCode, () => setMsg("Không đọc được clipboard: bấm \"Dán\" khi iOS hỏi, hoặc dán mã vào ô Token."));
 };
+$("s-reload").onclick = () => hardRefresh();
+$("s-ver").textContent = "bản " + BUILD;
 $("gear").onclick = () => { clearTimeout(timer); showSetup(""); };
 $("setup").onsubmit = (ev) => {
   ev.preventDefault();
@@ -449,7 +454,23 @@ async function load() {
   if (document.visibilityState === "visible") timer = setTimeout(load, 20000);
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && $("setup").hidden) load(); else clearTimeout(timer); });
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+const BUILD = "0cc08816ed";
+// service worker: sw.js luôn kiểm qua mạng; có bản mới thì tự tải lại trang (1 lần)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
+    const check = () => reg.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+    setInterval(check, 5 * 60000);
+  }).catch(() => {});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+}
+// nút "Tải bản mới": gỡ service worker + xoá bộ đệm rồi tải lại
+async function hardRefresh() {
+  try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+  location.replace(location.pathname + "?v=" + Date.now());
+}
 load();
 </script>
 

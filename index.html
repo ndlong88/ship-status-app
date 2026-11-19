@@ -131,6 +131,14 @@ a.ag:active { background: var(--bg) }
 .sh-head button { font-size: 18px; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 8px }
 .sh-body { overflow-y: auto; padding: 8px 14px 12px; overscroll-behavior: contain }
 .sh-meta { font: 11px var(--f-mono); color: var(--muted) }
+.sh-sec { font: 600 13px var(--f-head); margin: 10px 0 4px; color: var(--fg) }
+.auto { border-bottom: 1px solid var(--line); padding-bottom: 8px }
+.auto ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px }
+.auto-ag .flag { font-size: 11px }
+.flag.ok { background: var(--ok-bg); color: var(--ok) } .flag.idle { background: var(--bg); color: var(--muted); border: 1px solid var(--line) }
+.auto .why { color: var(--muted); font-size: 12px; overflow-wrap: anywhere }
+.auto-more { margin-top: 6px !important; font-size: 12px !important; color: var(--muted) }
+.auto-more .bad { color: var(--block) }
 .sh-meta .new { color: var(--ok); font-weight: 600 }
 .sh-warn { margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: var(--wait-bg); color: var(--wait); font-size: 12px }
 .sh-ask { border-top: 1px solid var(--line); padding: 10px 14px 12px; display: grid; gap: 6px; font-size: 12px; color: var(--muted) }
@@ -218,7 +226,7 @@ a.ag:active { background: var(--bg) }
 
 <script>
 const $ = (id) => document.getElementById(id);
-const BUILD = "efaf0b012e";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
+const BUILD = "b44defe7d0";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
 let SNAP = null, onlyMe = false, VIEW = "teams", LF = { tq: "", tst: "active", kq: "", ktype: "", knotask: false, ksort: "created", kdir: -1 };
 try { VIEW = localStorage.getItem("ship-view") || "teams"; LF = { ...LF, ...JSON.parse(localStorage.getItem("ship-lf") || "{}") }; } catch (e) {}
 const saveLF = () => { try { localStorage.setItem("ship-lf", JSON.stringify(LF)); localStorage.setItem("ship-view", VIEW); } catch (e) {} };
@@ -376,7 +384,9 @@ function renderProg() {
   if (!t) { closeProg(); return; }
   $("sh-title").textContent = "📊 " + (t.short || t.title || t.task) + " · " + t.id;
   const body = $("sh-body"), ask = $("sh-ask"); body.replaceChildren(); ask.replaceChildren();
+  body.append(autoStatus(t));
   const p = t.progress;
+  body.append(el("div", "sh-sec", "📝 Báo cáo của Planner"));
   if (p) {
     const at = new Date(p.at), meta = el("div", "sh-meta", "Planner ghi lúc " + (isNaN(at) ? p.at : at.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })) + " · " + ago(p.at));
     if (PROG.seen !== p.at) meta.append(el("span", "new", " · 🆕 vừa cập nhật"));
@@ -394,6 +404,27 @@ function renderProg() {
   if (pl && pl.rc) { const a = el("a", null, "Mở Planner ↗"); a.href = pl.rc; a.target = "_blank"; a.rel = "noopener"; row.append(a); }
   else row.append(el("span", null, pl && pl.live !== "off" ? "(Planner chưa bật Remote Control)" : "(Planner đang không chạy)"));
   ask.append(row);
+}
+// lớp 1: trạng thái hiện tại dựng thẳng từ dữ liệu đồng bộ (~1 phút), không tốn lượt Planner
+function autoStatus(t) {
+  const w = el("div", "auto");
+  const h = el("div", "sh-sec", "⚡ Hiện tại (tự động)"); h.append(el("span", "ago", " · " + ago(SNAP.generated_at))); w.append(h);
+  const flag = a => a.live === "dialog" ? ["wait", "xin quyền"] : a.state === "blocked" ? ["block", "bị chặn"] : a.state === "fail" ? ["block", "fail"]
+    : (a.waiting_on === "user" || a.state === "attention") ? ["wait", "chờ bạn"] : a.live === "busy" ? ["busy", "đang chạy"]
+    : a.state === "done" ? ["ok", "xong"] : a.waiting_on ? ["idle", "chờ " + a.waiting_on] : a.live === "off" ? ["idle", "không chạy"] : ["idle", "rảnh"];
+  const ul = el("ul", "auto-ag");
+  for (const a of t.agents) {
+    const li = el("li"), [k, txt] = flag(a);
+    li.append(el("b", null, a.letter + " " + a.name), document.createTextNode(" " + ([a.status, a.round && "r" + a.round].filter(Boolean).join(" · ") || "–") + " "), el("span", "flag " + k, txt));
+    const why = a.last || a.note; if (why) { const d = el("div", "why", why); if (a.last && a.last_at) d.append(el("span", "ago", " · " + ago(a.last_at))); li.append(d); }
+    ul.append(li);
+  }
+  w.append(ul);
+  const blk = [];
+  for (const q of t.q || []) blk.push((q.blocking ? "⛔ " : "❓ ") + q.id + " → " + (q.to || "planner") + (q.ask ? ": " + q.ask : ""));
+  for (const m of t.mrs || []) if (m.state !== "merged") blk.push("🔀 !" + m.iid + " " + m.repo + " " + (m.draft ? "draft" : m.state) + (m.pipeline ? " · pipeline " + m.pipeline : ""));
+  if (blk.length) { const u = el("ul", "auto-more"); for (const x of blk) u.append(el("li", x.includes("pipeline failed") || x.startsWith("⛔") ? "bad" : "", x)); w.append(u); }
+  return w;
 }
 $("sh-x").onclick = closeProg;
 $("sheet").onclick = (e) => { if (e.target.id === "sheet") closeProg(); };

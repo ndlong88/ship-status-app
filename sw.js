@@ -1,6 +1,6 @@
 // Vỏ app: luôn lấy bản mới từ mạng (bỏ qua HTTP cache của GitHub Pages, max-age=600); chỉ dùng bản lưu khi mất mạng.
-// KHÔNG bao giờ lưu phản hồi api.github.com (dữ liệu). efaf0b012e được deploy-app.sh thay bằng mã bản dựng.
-const CACHE = "ship-shell-efaf0b012e";
+// KHÔNG bao giờ lưu phản hồi api.github.com (dữ liệu). b44defe7d0 được deploy-app.sh thay bằng mã bản dựng.
+const CACHE = "ship-shell-b44defe7d0";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "apple-touch-icon.png"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))));

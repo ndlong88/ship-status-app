@@ -226,7 +226,7 @@ a.ag:active { background: var(--bg) }
 
 <script>
 const $ = (id) => document.getElementById(id);
-const BUILD = "b44defe7d0";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
+const BUILD = "65a7ddc805";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
 let SNAP = null, onlyMe = false, VIEW = "teams", LF = { tq: "", tst: "active", kq: "", ktype: "", knotask: false, ksort: "created", kdir: -1 };
 try { VIEW = localStorage.getItem("ship-view") || "teams"; LF = { ...LF, ...JSON.parse(localStorage.getItem("ship-lf") || "{}") }; } catch (e) {}
 const saveLF = () => { try { localStorage.setItem("ship-lf", JSON.stringify(LF)); localStorage.setItem("ship-view", VIEW); } catch (e) {} };
@@ -278,7 +278,7 @@ function render() {
 
   const box = $("teams"); box.replaceChildren();
   const today = new Date().toISOString().slice(0, 10);
-  const order = teams.slice().sort((x, y) => (y.agents.filter(needsMe).length - x.agents.filter(needsMe).length) || x.id.localeCompare(y.id));
+  const order = teams.slice().sort((x, y) => x.id.localeCompare(y.id));  // cố định theo tên team; lọc việc chờ bạn ở tab "Chờ tôi"
   for (const t of order) {
     const agents = onlyMe ? t.agents.filter(needsMe) : t.agents;
     if (onlyMe && !agents.length && !(t.q_blocking > 0)) continue;

@@ -120,6 +120,31 @@ a.ag:active { background: var(--bg) }
 .xfer button:disabled { opacity: .4; cursor: default }
 .xfer .ver { align-self: center; justify-self: center; font-family: var(--f-mono); font-size: 11px; color: var(--muted) }
 .wrap { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) }
+.pbtn { grid-column: 1 / -1; justify-self: start; margin-top: 6px; font: 500 12px var(--f-body); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer }
+.pbtn.none { border-color: var(--line); color: var(--muted) }
+.pbtn .ago { margin-left: 4px }
+.sheet { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / .45); display: flex; align-items: flex-end; justify-content: center }
+.sh-card { background: var(--surface); color: var(--fg); width: 100%; max-width: 720px; max-height: 88vh; border-radius: 14px 14px 0 0; display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px) }
+.sh-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; border-bottom: 1px solid var(--line) }
+.sh-head b { flex: 1; font-family: var(--f-head); font-size: 16px; min-width: 0 }
+.sh-head button { font-size: 18px; border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 8px }
+.sh-body { overflow-y: auto; padding: 8px 14px 12px; overscroll-behavior: contain }
+.sh-meta { font: 11px var(--f-mono); color: var(--muted) }
+.sh-meta .new { color: var(--ok); font-weight: 600 }
+.sh-warn { margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: var(--wait-bg); color: var(--wait); font-size: 12px }
+.sh-ask { border-top: 1px solid var(--line); padding: 10px 14px 12px; display: grid; gap: 6px; font-size: 12px; color: var(--muted) }
+.sh-ask .row { display: flex; gap: 8px; flex-wrap: wrap }
+.sh-ask button, .sh-ask a { font: 500 13px var(--f-body); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; text-decoration: none }
+.sh-ask a { background: var(--accent); color: var(--surface) }
+.pbtn .ago, .sh-meta .ago { color: var(--faint); font: 400 11px var(--f-mono) }
+.pbody { font-size: 13px; line-height: 1.45; margin-top: 4px }
+.pbody .ph { font-weight: 700; margin: 8px 0 2px }
+.pbody p { margin: 2px 0 }
+.pbody ul { margin: 2px 0; padding-left: 18px }
+.ptab { display: grid; gap: 2px; margin: 4px 0; font-size: 12px; overflow-x: auto }
+.ptab .pr { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(70px, 1fr); gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--line) }
+.ptab .hd { color: var(--muted); font-weight: 600 }
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding: 4px max(8px, env(safe-area-inset-left, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) }
 .tabbar button { border: 0; background: none; color: var(--muted); font: 500 11px var(--f-body); display: grid; justify-items: center; gap: 2px; padding: 6px 0; cursor: pointer }
 .tabbar button span { font-size: 17px; line-height: 1 }
@@ -128,6 +153,7 @@ a.ag:active { background: var(--bg) }
 .lview { display: grid; gap: 8px }
 .lsearch { font: 14px var(--f-body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); width: 100% }
 .lchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px }
+.lsort { font-size: 12px; opacity: .7; align-self: center; white-space: nowrap; margin-right: 2px; }
 .lchips .chip { white-space: nowrap; flex: none }
 .lchips .chip.on { border-color: var(--accent); color: var(--fg); box-shadow: inset 0 0 0 1px var(--accent) }
 .lcount { font-family: var(--f-mono); font-size: 11px; color: var(--muted) }
@@ -180,6 +206,9 @@ a.ag:active { background: var(--bg) }
   </div>
   <p class="note">Bấm một agent để mở phiên của nó (Remote Control) và xem chi tiết, nhắn hoặc duyệt ở đó. Dữ liệu được mã hoá trên laptop, chỉ máy đã ghép mới đọc được.</p>
 </div>
+<div class="sheet" id="sheet" hidden><div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-title">
+  <div class="sh-head"><b id="sh-title"></b><button type="button" id="sh-x" aria-label="Đóng">✕</button></div>
+  <div class="sh-body" id="sh-body"></div><div class="sh-ask" id="sh-ask"></div></div></div>
 <nav class="tabbar" id="tabbar" hidden>
   <button type="button" data-view="teams"><span>▣</span>Teams</button>
   <button type="button" data-view="tasks"><span>☰</span>Tasks</button>
@@ -189,8 +218,8 @@ a.ag:active { background: var(--bg) }
 
 <script>
 const $ = (id) => document.getElementById(id);
-const BUILD = "f853dc2363";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
-let SNAP = null, onlyMe = false, VIEW = "teams", LF = { tq: "", tst: "active", kq: "", ktype: "", knotask: false };
+const BUILD = "efaf0b012e";  // deploy-app.sh thay bằng mã bản dựng — khai báo ĐẦU script (dùng ở nhiều chỗ)
+let SNAP = null, onlyMe = false, VIEW = "teams", LF = { tq: "", tst: "active", kq: "", ktype: "", knotask: false, ksort: "created", kdir: -1 };
 try { VIEW = localStorage.getItem("ship-view") || "teams"; LF = { ...LF, ...JSON.parse(localStorage.getItem("ship-lf") || "{}") }; } catch (e) {}
 const saveLF = () => { try { localStorage.setItem("ship-lf", JSON.stringify(LF)); localStorage.setItem("ship-view", VIEW); } catch (e) {} };
 const TASK_ST = { "in-progress": "Đang làm", paused: "Tạm gác", todo: "Chưa làm", done: "Xong", archived: "Lưu trữ" };
@@ -252,7 +281,13 @@ function render() {
     const sub = el("div", "sub"); sub.append(document.createTextNode(t.id + " · " + t.task));
     if (t.due) { sub.append(document.createTextNode(" · hạn ")); sub.append(el("span", "due" + (t.due < today && t.phase !== "DONE" ? " late" : ""), t.due)); }
     if (t.q_open) { sub.append(document.createTextNode(" · ")); sub.append(el("span", t.q_blocking ? "due late" : "", t.q_open + " câu hỏi mở" + (t.q_blocking ? " (" + t.q_blocking + " BLOCKING)" : ""))); }
-    th.append(sub); sec.append(th);
+    th.append(sub);
+    if (!onlyMe) {
+      const pb = el("button", "pbtn" + (t.progress ? "" : " none"), "📊 Báo cáo tiến độ"); pb.type = "button";
+      if (t.progress) pb.append(el("span", "ago", "· " + ago(t.progress.at)));
+      pb.onclick = () => openProg(t.id); th.append(pb);
+    }
+    sec.append(th);
 
     const ul = el("ul", "agents");
     for (const a of agents) {
@@ -297,12 +332,72 @@ function render() {
 
     box.append(sec);
   }
+  renderProg();
   if (!box.childElementCount) {
     const e = el("div", "empty"); e.append(el("strong", null, onlyMe ? "Không có gì chờ bạn" : "Chưa có team nào đang làm task"));
     e.append(el("span", null, onlyMe ? "Mọi agent đang chạy hoặc đã xong việc." : "Giao task cho team trên dashboard laptop."));
     box.append(e);
   }
 }
+
+// 📊 báo cáo tiến độ mới nhất của Planner (progress.md) — markdown tối giản, chỉ dựng bằng textContent
+function progBody(p) {
+  const body = el("div", "pbody"); let ul = null, tb = null;
+  const inline = (node, txt) => { txt.split(/(\*\*[^*]+\*\*)/).forEach(x => x.startsWith("**") && x.endsWith("**") ? node.append(el("b", null, x.slice(2, -2))) : node.append(document.createTextNode(x.replace(/`/g, "")))); return node; };
+  for (const raw of p.body.split("\n")) {
+    const line = raw.trim();
+    if (!line.startsWith("- ") && !line.startsWith("* ")) ul = null;
+    if (!line.startsWith("|")) tb = null;
+    if (!line) continue;
+    if (/^#{1,4}\s/.test(line)) { body.append(inline(el("div", "ph"), line.replace(/^#+\s*/, ""))); continue; }
+    if (/^[-*]\s/.test(line)) { if (!ul) { ul = el("ul"); body.append(ul); } ul.append(inline(el("li"), line.slice(2))); continue; }
+    if (line.startsWith("|")) {
+      if (/^\|[\s:|-]+\|$/.test(line)) continue;
+      const cells = line.replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+      if (!tb) { tb = el("div", "ptab"); body.append(tb); tb.dataset.head = "1"; const r = el("div", "pr hd"); cells.forEach(c => r.append(inline(el("span"), c))); tb.append(r); continue; }
+      const r = el("div", "pr"); cells.forEach(c => r.append(inline(el("span"), c))); tb.append(r); continue;
+    }
+    body.append(inline(el("p"), line));
+  }
+  return body;
+}
+
+// sheet 📊 theo team: app chỉ đọc ⇒ yêu cầu báo cáo mới = nhắn Planner trong app Claude (Remote Control), báo cáo tự hiện sau lần đồng bộ kế tiếp
+let PROG = null;  // { team, seen: at lúc mở }
+function openProg(id) {
+  const t = ((SNAP && SNAP.teams) || []).find(x => x.id === id);
+  PROG = { team: id, seen: t && t.progress ? t.progress.at : "" };
+  $("sheet").hidden = false; document.body.style.overflow = "hidden"; renderProg();
+}
+function closeProg() { PROG = null; $("sheet").hidden = true; document.body.style.overflow = ""; }
+function renderProg() {
+  if (!PROG) return;
+  const t = ((SNAP && SNAP.teams) || []).find(x => x.id === PROG.team);
+  if (!t) { closeProg(); return; }
+  $("sh-title").textContent = "📊 " + (t.short || t.title || t.task) + " · " + t.id;
+  const body = $("sh-body"), ask = $("sh-ask"); body.replaceChildren(); ask.replaceChildren();
+  const p = t.progress;
+  if (p) {
+    const at = new Date(p.at), meta = el("div", "sh-meta", "Planner ghi lúc " + (isNaN(at) ? p.at : at.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })) + " · " + ago(p.at));
+    if (PROG.seen !== p.at) meta.append(el("span", "new", " · 🆕 vừa cập nhật"));
+    body.append(meta);
+    if (Date.now() - at > 3 * 3600e3) body.append(el("div", "sh-warn", "Báo cáo đã hơn 3 giờ — tình hình có thể đã khác, xin báo cáo mới bên dưới."));
+    body.append(progBody(p));
+  } else body.append(el("div", "sh-warn", "Team này chưa có báo cáo tiến độ nào."));
+  const cmd = "Báo cáo tiến độ team " + t.id;
+  ask.append(el("div", null, "Cần báo cáo mới: mở phiên Planner trong app Claude, dán câu lệnh. Báo cáo mới tự hiện ở đây sau khoảng 1 phút."));
+  const row = el("div", "row");
+  const cp = el("button", null, "📋 Chép câu lệnh"); cp.type = "button";
+  cp.onclick = async () => { try { await navigator.clipboard.writeText(cmd); cp.textContent = "✓ Đã chép"; } catch (e) { cp.textContent = cmd; } };
+  row.append(cp);
+  const pl = t.agents.find(a => a.key === "planner");
+  if (pl && pl.rc) { const a = el("a", null, "Mở Planner ↗"); a.href = pl.rc; a.target = "_blank"; a.rel = "noopener"; row.append(a); }
+  else row.append(el("span", null, pl && pl.live !== "off" ? "(Planner chưa bật Remote Control)" : "(Planner đang không chạy)"));
+  ask.append(row);
+}
+$("sh-x").onclick = closeProg;
+$("sheet").onclick = (e) => { if (e.target.id === "sheet") closeProg(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && PROG) closeProg(); });
 
 $("f-me").onclick = () => { VIEW = "me"; saveLF(); render(); scrollTo(0, 0); };
 $("tabbar").onclick = (e) => { const b = e.target.closest("[data-view]"); if (!b) return; VIEW = b.dataset.view; saveLF(); render(); scrollTo(0, 0); };
@@ -352,9 +447,19 @@ function renderTickets() {
   const tk = SNAP.tickets || { issues: [] }, all = tk.issues || [], q = LF.kq.trim().toLowerCase();
   const types = [...new Set(all.map(i => i.type))].sort();
   const list = all.filter(i => (!q || (i.key + " " + i.summary).toLowerCase().includes(q)) && (!LF.ktype || i.type === LF.ktype) && (!LF.knotask || !i.task));
+  const PR = ["Highest", "High", "Medium", "Low", "Lowest"], keyNum = k => +(String(k).split("-")[1] || 0);
+  const SK = { created: i => i.created || "", due: i => i.due || "", prio: i => { const n = PR.indexOf(i.priority); return n < 0 ? 9 : n; },
+    status: i => i.status || "", key: i => keyNum(i.key), type: i => i.type || "" };
+  const f = SK[LF.ksort] || SK.created, d = LF.kdir || -1;
+  list.sort((a, b) => { const x = f(a), y = f(b);
+    if (LF.ksort === "due" && (!x || !y)) return !x - !y;  // không hạn luôn xuống cuối
+    return (x < y ? -1 : x > y ? 1 : 0) * d || keyNum(b.key) - keyNum(a.key); });
   box.append(searchBox(LF.kq, "Tìm mã, tiêu đề…", v => { LF.kq = v; saveLF(); render(); }));
   box.append(chipBar([["", "Mọi loại"], ...types.map(x => [x, x])], LF.ktype, v => { LF.ktype = v; saveLF(); render(); }));
   box.append(chipBar([[false, "Tất cả"], [true, "Chưa có task"]], LF.knotask, v => { LF.knotask = v; saveLF(); render(); }));
+  const sb = chipBar([["created", "Ngày tạo"], ["prio", "Ưu tiên"], ["due", "Hạn"], ["status", "Trạng thái"], ["type", "Loại"], ["key", "Mã"]].map(([v, l]) => [v, (LF.ksort === v ? (d < 0 ? "↓ " : "↑ ") : "") + l]),
+    LF.ksort, v => { if (LF.ksort === v) LF.kdir = -(LF.kdir || -1); else { LF.ksort = v; LF.kdir = v === "created" || v === "key" ? -1 : 1; } saveLF(); render(); });
+  sb.prepend(el("span", "lsort", "Sắp xếp")); box.append(sb);
   const info = el("div", "lcount", list.length + " / " + all.length + " ticket" + (tk.fetched_at ? " · lấy " + ago(tk.fetched_at * 1000) : ""));
   if (tk.error) info.append(el("span", "late", " · lỗi: " + tk.error));
   box.append(info);
